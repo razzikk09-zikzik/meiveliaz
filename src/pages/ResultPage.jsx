@@ -1,7 +1,9 @@
-// src/pages/ResultPage.jsx — scam analysis result with local heuristic fallback
+// src/pages/ResultPage.jsx — scam analysis result with graceful fallback chain:
+// backend risk engine -> direct Gemini (when backend is asleep) -> local heuristics
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { analyzeLocally, VERDICT_META } from '../utils/analyze';
+import { geminiConfigured, geminiAnalyzeText, geminiAnalyzeImage, fileToResizedDataUrl } from '../utils/geminiClient';
 
 const SIGNAL_ICONS = {
   link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
@@ -60,20 +62,11 @@ function normalizeBackend(data, local) {
 }
 
 // Downscale a screenshot in the browser before upload — phone screenshots are
-// often 3-5MB and server payloads should stay small. Falls back to the
-// original file when the browser can't decode it (e.g. some HEIC files).
+// often 3-5MB and server payloads should stay small. Returns a Blob for upload.
 async function fileToUploadBlob(file) {
   try {
-    const bitmap = await createImageBitmap(file);
-    const maxDim = 1280;
-    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-    if (scale >= 1 && file.size < 1.5 * 1024 * 1024) return file;
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-    return blob && blob.size > 0 ? blob : file;
+    const dataUrl = await fileToResizedDataUrl(file);
+    return await (await fetch(dataUrl)).blob();
   } catch {
     return file;
   }
@@ -111,12 +104,11 @@ export default function ResultPage() {
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
-    // Screenshot flow: upload the image, backend reads it with Gemini vision (OCR fallback)
+    // Screenshot flow: backend Gemini vision first, direct Gemini as fallback
     if (image) {
       let cancelled = false;
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       (async () => {
-        // One automatic retry — survives a backend restart or a network blip
         for (let tries = 0; tries < 2 && !cancelled; tries++) {
           try {
             if (tries > 0) await new Promise((r) => setTimeout(r, 2500));
@@ -133,8 +125,24 @@ export default function ResultPage() {
             return;
           } catch (err) {
             if (tries === 1 && !cancelled) {
-              setImgError(true);
-              setImgErrorDetail(err && err.message ? String(err.message) : '');
+              // Backend unreachable — try Gemini directly from the browser
+              if (geminiConfigured()) {
+                try {
+                  const g = await geminiAnalyzeImage(image);
+                  if (!cancelled) setResult(g);
+                  return;
+                } catch (gerr) {
+                  if (!cancelled) {
+                    setImgError(true);
+                    setImgErrorDetail(`Backend unreachable; direct Gemini also failed (${gerr.message})`);
+                  }
+                  return;
+                }
+              }
+              if (!cancelled) {
+                setImgError(true);
+                setImgErrorDetail(err && err.message ? String(err.message) : '');
+              }
             }
           }
         }
@@ -164,7 +172,17 @@ export default function ResultPage() {
         if (cancelled) return;
         setResult(normalizeBackend(data, local));
       })
-      .catch(() => { if (!cancelled) setResult(local); })
+      .catch(() => {
+        // Backend unreachable (e.g. cold start) — try Gemini directly, then local
+        if (cancelled) return;
+        if (geminiConfigured()) {
+          geminiAnalyzeText(text)
+            .then((g) => { if (!cancelled) setResult(g); })
+            .catch(() => { if (!cancelled) setResult(local); });
+        } else if (!cancelled) {
+          setResult(local);
+        }
+      })
       .finally(() => clearTimeout(timer));
 
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
