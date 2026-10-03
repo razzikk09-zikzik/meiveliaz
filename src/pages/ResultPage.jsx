@@ -86,6 +86,8 @@ export default function ResultPage() {
   const image = location.state?.image || null;
   const [result, setResult] = useState(null);
   const [imgError, setImgError] = useState(false);
+  const [imgErrorDetail, setImgErrorDetail] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
@@ -94,19 +96,27 @@ export default function ResultPage() {
       let cancelled = false;
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       (async () => {
-        try {
-          const blob = await fileToUploadBlob(image);
-          const fd = new FormData();
-          fd.append('image', blob, 'screenshot.jpg');
-          const res = await fetch(`${apiUrl}/api/analyze/image`, { method: 'POST', body: fd });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body.detail || 'Image analysis failed');
+        // One automatic retry — survives a backend restart or a network blip
+        for (let tries = 0; tries < 2 && !cancelled; tries++) {
+          try {
+            if (tries > 0) await new Promise((r) => setTimeout(r, 2500));
+            const blob = await fileToUploadBlob(image);
+            const fd = new FormData();
+            fd.append('image', blob, 'screenshot.jpg');
+            const res = await fetch(`${apiUrl}/api/analyze/image`, { method: 'POST', body: fd });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              throw new Error(body.detail || `Server error ${res.status}`);
+            }
+            const data = await res.json();
+            if (!cancelled) setResult(normalizeBackend(data, analyzeLocally(data?.extracted?.ocr_text || '')));
+            return;
+          } catch (err) {
+            if (tries === 1 && !cancelled) {
+              setImgError(true);
+              setImgErrorDetail(err && err.message ? String(err.message) : '');
+            }
           }
-          const data = await res.json();
-          if (!cancelled) setResult(normalizeBackend(data, analyzeLocally(data?.extracted?.ocr_text || '')));
-        } catch {
-          if (!cancelled) setImgError(true);
         }
       })();
       return () => { cancelled = true; };
@@ -136,7 +146,7 @@ export default function ResultPage() {
       .finally(() => clearTimeout(timer));
 
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [text, image]);
+  }, [text, image, attempt]);
 
   // Direct visit without text or image
   if (!text && !image) {
@@ -167,13 +177,24 @@ export default function ResultPage() {
         {imgError ? (
           <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '1.5rem', textAlign: 'center' }}>
             <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '1.125rem', fontWeight: '800' }}>Could not analyze the screenshot</h1>
-            <p style={{ color: '#475569', fontSize: '0.875rem', margin: '0.5rem 0 1.25rem' }}>Take a screenshot of the message and try again, or paste its text on the home screen.</p>
-            <button
-              onClick={() => navigate('/')}
-              style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', border: 'none', background: 'linear-gradient(90deg, #1D6FF2 0%, #7C5CF5 100%)', color: '#fff', fontFamily: 'var(--font-head)', fontWeight: '700', cursor: 'pointer' }}
-            >
-              Back to Home
-            </button>
+            <p style={{ color: '#475569', fontSize: '0.875rem', margin: '0.5rem 0 0.25rem' }}>Take a screenshot of the message and try again, or paste its text on the home screen.</p>
+            {imgErrorDetail && (
+              <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '1rem' }}>{imgErrorDetail}</p>
+            )}
+            <div style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center', marginTop: '0.75rem' }}>
+              <button
+                onClick={() => { setImgError(false); setImgErrorDetail(''); setAttempt((a) => a + 1); }}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', border: 'none', background: 'linear-gradient(90deg, #1D6FF2 0%, #7C5CF5 100%)', color: '#fff', fontFamily: 'var(--font-head)', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Try again
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', border: '1px solid #E6EAF2', background: '#fff', color: '#334155', fontFamily: 'var(--font-head)', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '2rem 1rem', textAlign: 'center' }}>
