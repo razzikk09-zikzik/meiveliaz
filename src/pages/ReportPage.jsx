@@ -50,10 +50,33 @@ export default function ReportPage() {
   const [lostMoney, setLostMoney] = useState(null);
   const [area, setArea] = useState('South Chennai');
   const [reportId, setReportId] = useState(null);
+  const [storedNote, setStoredNote] = useState(null);
 
-  const submit = () => {
-    setReportId(`MV-${Math.floor(1000 + Math.random() * 9000)}`);
+  const submit = async () => {
+    const localId = `MV-${Math.floor(1000 + Math.random() * 9000)}`;
     setStep(3);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scam_type: type || 'Unknown',
+          message,
+          location: area,
+          money_lost: (lostMoney || 'no').toLowerCase(),
+          anonymous: true,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReportId(data.id ? String(data.id).slice(0, 8).toUpperCase() : localId);
+        setStoredNote(data.stored ? null : 'Secure storage is not configured yet — this report was not persisted.');
+        return;
+      }
+    } catch { /* backend unreachable — keep the report anonymous and local */ }
+    setReportId(localId);
+    setStoredNote('Backend offline — report kept anonymous on this device only.');
   };
 
   const sectionTitle = { fontFamily: 'var(--font-head)', fontWeight: '700', fontSize: '0.9375rem', color: '#0f172a', marginBottom: '0.625rem' };
@@ -191,6 +214,9 @@ export default function ReportPage() {
           <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '0.625rem', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#1e40af', marginTop: '0.25rem' }}>
             If you lost money, call <strong>1930</strong> immediately — the national cybercrime helpline.
           </div>
+          {storedNote && (
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{storedNote}</p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', width: '100%', marginTop: '0.75rem' }}>
             <button
               onClick={() => navigate('/')}

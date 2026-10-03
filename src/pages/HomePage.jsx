@@ -8,12 +8,27 @@ export default function HomePage() {
   const [supportsSpeech] = useState('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [language, setLanguage] = useState('en');
+  const [campaign, setCampaign] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Load the live campaign alert from the backend; fall back to static text.
+  useEffect(() => {
+    let cancelled = false;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    fetch(`${apiUrl}/api/threats`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('API error'))))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.alerts) || !data.alerts.length) return;
+        setCampaign({ title: data.alerts[0].title, detail: data.alerts[0].detail });
+      })
+      .catch(() => { /* keep static alert */ });
+    return () => { cancelled = true; };
   }, []);
 
   const cardStyle = {
@@ -145,8 +160,8 @@ export default function HomePage() {
         <div onClick={() => navigate('/threats')} style={{ background: '#FFF7E6', padding: '0.75rem 1rem', display: 'flex', gap: '0.75rem', alignItems: 'center', borderBottom: '1px solid #E6EAF2' }}>
           <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "var(--font-head)", fontWeight: '700', fontSize: '0.875rem', color: '#DC2626' }}>Active scam campaign reported</div>
-            <div style={{ fontSize: '0.75rem', color: '#475569' }}>in Velachery, 14 reports this week.</div>
+            <div style={{ fontFamily: "var(--font-head)", fontWeight: '700', fontSize: '0.875rem', color: '#DC2626' }}>{campaign?.title || 'Active scam campaign reported'}</div>
+            <div style={{ fontSize: '0.75rem', color: '#475569' }}>{campaign?.detail || 'in Velachery, 14 reports this week.'}</div>
           </div>
           <span style={{ color: '#DC2626', fontSize: '0.625rem', fontWeight: 700, background: '#FEE2E2', padding: '0.125rem 0.375rem', borderRadius: '1rem' }}>SCAM</span>
         </div>
@@ -346,10 +361,10 @@ export default function HomePage() {
               </svg>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: "var(--font-head)", fontWeight: '800', fontSize: '0.9375rem', color: '#DC2626' }}>
-                  Active scam campaign reported
+                  {campaign?.title || 'Active scam campaign reported'}
                 </div>
                 <div className="text-ellipsis-1" style={{ fontFamily: "var(--font-body)", fontSize: '0.8125rem', color: '#475569' }}>
-                  in Velachery, 14 reports this week.
+                  {campaign?.detail || 'in Velachery, 14 reports this week.'}
                 </div>
               </div>
             </div>

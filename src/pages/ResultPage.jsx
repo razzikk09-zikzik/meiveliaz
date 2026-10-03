@@ -7,10 +7,18 @@ const SIGNAL_ICONS = {
   link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   domain: 'M13.832 16.568c1.153-.5 2.132-1.138 3.168-1.68.87-.478 1.736-1.05 2.5-1.732M13.832 16.568a5.982 5.982 0 0 1-2.832-.832 5.982 5.982 0 0 1-2.5-2.5 5.985 5.985 0 0 1-.832-2.832m7.164 6.164c-1.367.59-2.898.928-4.5.928a9 9 0 1 1 9-9c0 1.602-.337 3.133-.928 4.5',
   brand: 'M3 21h18M4 18h16M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3l9 5H3l9-5z',
+  bank: 'M3 21h18M4 18h16M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3l9 5H3l9-5z',
   urgency: 'M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  otp_request: 'M15 7a2 2 0 0 1 4 0v4M5 11h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zm5-4a2 2 0 0 1 4 0v4H10V7z',
   credentials: 'M15 7a2 2 0 0 1 4 0v4M5 11h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zm5-4a2 2 0 0 1 4 0v4H10V7z',
   money: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  payment_request: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   contact: 'M3 5a2 2 0 0 1 2-2h3.28a1 1 0 0 1 .948.684l1.498 4.493a1 1 0 0 1-.502 1.21l-2.257 1.13a11.042 11.042 0 0 0 5.516 5.516l1.13-2.257a1 1 0 0 1 1.21-.502l4.493 1.498a1 1 0 0 1 .684.949V19a2 2 0 0 1-2 2h-1C9.716 21 3 14.284 3 6V5z',
+  contact_request: 'M3 5a2 2 0 0 1 2-2h3.28a1 1 0 0 1 .948.684l1.498 4.493a1 1 0 0 1-.502 1.21l-2.257 1.13a11.042 11.042 0 0 0 5.516 5.516l1.13-2.257a1 1 0 0 1 1.21-.502l4.493 1.498a1 1 0 0 1 .684.949V19a2 2 0 0 1-2 2h-1C9.716 21 3 14.284 3 6V5z',
+  verification_request: 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  phishing_pattern: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  scam_pattern: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  risky_tld: 'M13.832 16.568c1.153-.5 2.132-1.138 3.168-1.68.87-.478 1.736-1.05 2.5-1.732M13.832 16.568a5.982 5.982 0 0 1-2.832-.832 5.982 5.982 0 0 1-2.5-2.5 5.985 5.985 0 0 1-.832-2.832m7.164 6.164c-1.367.59-2.898.928-4.5.928a9 9 0 1 1 9-9c0 1.602-.337 3.133-.928 4.5',
 };
 
 function SignalIcon({ type }) {
@@ -19,6 +27,35 @@ function SignalIcon({ type }) {
       <path d={SIGNAL_ICONS[type] || SIGNAL_ICONS.link} />
     </svg>
   );
+}
+
+// Map the backend risk-engine response {classification, risk_score, signals,...}
+// onto the local result shape; fall back to the local analysis shape.
+function normalizeBackend(data, local) {
+  if (!data || typeof data !== 'object') return local;
+  if (typeof data.risk_score === 'number' && data.classification) {
+    return {
+      score: Math.round(data.risk_score),
+      verdict: String(data.classification).toLowerCase(),
+      signals: (Array.isArray(data.signals) ? data.signals : []).slice(0, 6).map((s) => {
+        if (typeof s === 'string') {
+          return { key: s.toLowerCase().replace(/\s+/g, '_'), title: s, detail: 'AI signal' };
+        }
+        const name = String(s.name || 'Signal').toLowerCase();
+        return {
+          key: name.replace(/\s+/g, '_'),
+          title: name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          detail: s.detail || '',
+        };
+      }),
+      urls: data.urls || local.urls,
+      similarReports: local.similarReports,
+      explanation: data.explanation || '',
+      recommendations: Array.isArray(data.recommendations) && data.recommendations.length ? data.recommendations : null,
+    };
+  }
+  if (typeof data.score === 'number' && data.verdict) return { ...local, ...data };
+  return local;
 }
 
 export default function ResultPage() {
@@ -37,7 +74,7 @@ export default function ResultPage() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);
 
-    fetch(`${apiUrl}/analyze`, {
+    fetch(`${apiUrl}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -46,11 +83,7 @@ export default function ResultPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('API Error'))))
       .then((data) => {
         if (cancelled) return;
-        if (data && typeof data.score === 'number' && data.verdict) {
-          setResult({ ...local, ...data, similarReports: data.similarReports ?? local.similarReports });
-        } else {
-          setResult(local);
-        }
+        setResult(normalizeBackend(data, local));
       })
       .catch(() => { if (!cancelled) setResult(local); })
       .finally(() => clearTimeout(timer));
@@ -144,6 +177,14 @@ export default function ResultPage() {
         </div>
       )}
 
+      {/* Engine explanation */}
+      {r.explanation && (
+        <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '1rem' }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: '800', fontSize: '0.9375rem', color: '#0f172a', marginBottom: '0.5rem' }}>Why this verdict</h2>
+          <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.55 }}>{r.explanation}</p>
+        </div>
+      )}
+
       {/* Similar reports */}
       {r.similarReports && (
         <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '0.875rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
@@ -175,10 +216,10 @@ export default function ResultPage() {
         <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: '800', fontSize: '0.9375rem', color: '#1e40af' }}>
           {r.verdict === 'safe' ? 'Stay alert' : 'What to do next'}
         </h2>
-        {(r.verdict === 'safe'
+        {(r.recommendations || (r.verdict === 'safe'
           ? ['Never share OTP or PINs with anyone', 'Verify unexpected messages with the sender', 'Report anything suspicious to help others']
           : ['Do not click the link', 'Do not share any OTP or details', 'Report it to help others']
-        ).map((step, i) => (
+        )).map((step, i) => (
           <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <span style={{ width: '1.5rem', height: '1.5rem', borderRadius: '50%', background: '#2563EB', color: '#fff', fontFamily: 'var(--font-head)', fontWeight: '700', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
             <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e3A8A' }}>{step}</span>

@@ -1,6 +1,16 @@
 // src/pages/ThreatsPage.jsx — active threats map + filterable list
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ScamMap from '../components/ScamMap';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const ICON_BY_CATEGORY = {
+  'Bank KYC': '/assets/bank_kyc_impersonation.png',
+  'Courier': '/assets/courier_refund_scam.png',
+  'UPI': '/assets/upi_payment.png',
+  'Job offer': '/assets/fake_job_recruitment.png',
+  'Fake link': '/assets/website_url.png',
+};
 
 const THREATS = [
   { id: 1, title: 'Fake SBI KYC link', category: 'Bank KYC', area: 'Velachery', reports: 14, iconUrl: '/assets/bank_kyc_impersonation.png', color: '#DC2626', bg: '#FEF2F2' },
@@ -27,8 +37,33 @@ export default function ThreatsPage() {
   const [category, setCategory] = useState('All');
   const [area, setArea] = useState('All areas');
   const [time, setTime] = useState('Last 7 days');
+  const [threatList, setThreatList] = useState(THREATS);
 
-  const filtered = THREATS.filter(
+  // Load live threats from the backend; keep the static list as fallback so
+  // the page still works when the API is unreachable or not yet deployed.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/threats`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('API error'))))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.threats)) return;
+        const mapped = data.threats
+          .map((t) => ({
+            id: t.id,
+            title: t.title,
+            category: t.category,
+            area: t.area,
+            reports: t.reports || 0,
+            iconUrl: ICON_BY_CATEGORY[t.category] || '/assets/sms.png',
+          }))
+          .filter((t) => t.reports > 0);
+        if (mapped.length) setThreatList(mapped);
+      })
+      .catch(() => { /* keep seed/static data */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const filtered = threatList.filter(
     (t) => (category === 'All' || t.category === category) && (area === 'All areas' || t.area === area),
   );
 

@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment / secrets — never commit
+.env
+backend/.env
+.env.local
+*.pem
+
+# Python
+__pycache__/
+backend/.venv/
+backend/venv/
+*.pyc

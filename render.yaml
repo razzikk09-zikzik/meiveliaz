@@ -1,0 +1,29 @@
+# Render.com deployment configuration for the MEYVIZHI FastAPI backend.
+# Deploy: Render Dashboard -> New -> Blueprint -> point at this repository.
+# Then add the environment variables below in Render -> service -> Environment.
+services:
+  - type: web
+    name: meyvizhi-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,http://127.0.0.1:5173   # add your Vercel domain here
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
