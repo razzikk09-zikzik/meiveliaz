@@ -79,6 +79,26 @@ async function fileToUploadBlob(file) {
   }
 }
 
+function SlowAnalysisCard() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '2rem 1rem', textAlign: 'center' }}>
+      <div style={{ width: '2.5rem', height: '2.5rem', margin: '0 auto 0.75rem', borderRadius: '50%', border: '3px solid #E6EAF2', borderTopColor: '#2563EB', animation: 'spin 1s linear infinite' }} />
+      <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '1.125rem', fontWeight: '800' }}>Analyzing your screenshot…</h1>
+      <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>Our AI is reading every word in the image.</p>
+      {slow && (
+        <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.75rem', padding: '0 0.5rem' }}>
+          First request after a break wakes up the free server — this can take up to a minute. Later checks are fast.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -129,7 +149,9 @@ export default function ResultPage() {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
+    // Render's free tier sleeps after ~15 min idle; the first request wakes it,
+    // which can take up to a minute — wait patiently before giving up.
+    const timer = setTimeout(() => controller.abort(), 60000);
 
     fetch(`${apiUrl}/api/analyze`, {
       method: 'POST',
@@ -197,11 +219,7 @@ export default function ResultPage() {
             </div>
           </div>
         ) : (
-          <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '2rem 1rem', textAlign: 'center' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', margin: '0 auto 0.75rem', borderRadius: '50%', border: '3px solid #E6EAF2', borderTopColor: '#2563EB', animation: 'spin 1s linear infinite' }} />
-            <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '1.125rem', fontWeight: '800' }}>Analyzing your screenshot…</h1>
-            <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>Our AI is reading every word in the image.</p>
-          </div>
+          <SlowAnalysisCard />
         )}
       </div>
     );
