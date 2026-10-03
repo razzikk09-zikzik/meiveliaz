@@ -38,7 +38,7 @@ async def analyze(text: str, language: str = "english") -> dict:
         f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
     )
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code != 200:
                 log_event(logger, "gemini_unavailable", status=resp.status_code)

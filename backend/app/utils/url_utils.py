@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 # Matches http(s) links, www links and bare domains with a plausible TLD.
 URL_RE = re.compile(
     r"(?:https?://|www\.)[^\s<>\"']+"
-    r"|\b[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+"
+    r"|\b[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)*"
     r"\.(?:com|net|org|in|co|io|xyz|top|info|online|site|club|icu|link|live|shop|store|buzz|gov|edu|sbi)\b[^\s<>\"']*",
     re.IGNORECASE,
 )

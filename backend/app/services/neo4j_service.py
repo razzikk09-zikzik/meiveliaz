@@ -15,13 +15,14 @@ logger = get_logger("meyvizhi.neo4j")
 
 
 def _http_endpoint() -> str:
-    """neo4j+s://abc.databases.neo4j.io -> https://abc.databases.neo4j.io/db/neo4j/query/v2"""
+    """Transactional Cypher endpoint — works on every Neo4j 4.x+/Aura instance.
+    neo4j+s://abc.databases.neo4j.io -> https://abc.databases.neo4j.io/db/neo4j/tx/commit"""
     raw = settings.neo4j_uri
     for scheme in ("neo4j+s://", "neo4j+ssc://", "bolt+s://", "bolt://", "neo4j://"):
         if raw.startswith(scheme):
             host = raw[len(scheme):].strip("/")
-            return f"https://{host}/db/neo4j/query/v2"
-    return f"https://{raw.strip('/').replace('https://', '')}/db/neo4j/query/v2"
+            return f"https://{host}/db/neo4j/tx/commit"
+    return f"https://{raw.strip('/').replace('https://', '')}/db/neo4j/tx/commit"
 
 
 def _auth() -> tuple:
@@ -29,18 +30,25 @@ def _auth() -> tuple:
 
 
 async def _run(statement: str, parameters: dict | None = None) -> dict | None:
-    """Execute one Cypher statement. Returns {"records": [...]} or None on failure."""
+    """Execute one Cypher statement. Returns {"records": [ {col: value} ]} or None."""
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 _http_endpoint(),
-                json={"statement": statement, "parameters": parameters or {}},
+                json={"statements": [{"statement": statement, "parameters": parameters or {}}]},
                 auth=_auth(),
             )
-            if resp.status_code != 200:
+            if resp.status_code not in (200, 201):
                 log_event(logger, "neo4j_unavailable", status=resp.status_code)
                 return None
-            return resp.json()
+            body = resp.json()
+            if body.get("errors"):
+                log_event(logger, "neo4j_cypher_error", count=len(body["errors"]))
+                return None
+            result = (body.get("results") or [{}])[0]
+            columns = result.get("columns", [])
+            records = [dict(zip(columns, row.get("row", []))) for row in result.get("data", [])]
+            return {"records": records}
     except Exception as exc:  # noqa: BLE001
         log_event(logger, "neo4j_error", error=type(exc).__name__)
         return None

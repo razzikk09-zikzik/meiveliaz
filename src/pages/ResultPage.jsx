@@ -72,7 +72,7 @@ export default function ResultPage() {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
+    const timer = setTimeout(() => controller.abort(), 15000);
 
     fetch(`${apiUrl}/api/analyze`, {
       method: 'POST',
