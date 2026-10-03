@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ScamMap from '../components/ScamMap';
 import { reportTiles, scamCards } from '../data/mock';
@@ -10,6 +10,16 @@ export default function HomePage() {
   const [language, setLanguage] = useState('en');
   const [campaign, setCampaign] = useState(null);
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  const onPickImage = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) navigate('/result', { state: { image: file } });
+    e.target.value = '';
+  };
+  const hiddenImageInput = (
+    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPickImage} />
+  );
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -44,6 +54,7 @@ export default function HomePage() {
 
   const renderMobile = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {hiddenImageInput}
       {/* 1. Heading */}
       <div style={{ padding: '0.5rem 0' }}>
         <h1 style={{ fontFamily: "var(--font-head)", fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>Check. Stay Safe.</h1>
@@ -70,7 +81,7 @@ export default function HomePage() {
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button style={{ padding: '0.375rem', background: '#F1F5F9', border: 'none', borderRadius: '0.25rem', display: 'flex' }}>
+            <button onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{ padding: '0.375rem', background: '#F1F5F9', border: 'none', borderRadius: '0.25rem', display: 'flex', cursor: 'pointer' }}>
               <svg width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             </button>
             {supportsSpeech && (
@@ -187,6 +198,7 @@ export default function HomePage() {
 
   const renderDesktop = () => (
     <div style={{ display: 'contents' }}>
+      {hiddenImageInput}
       {/* ══ ROW 1: Input card + Map card ══ */}
       <div className="top-row-flex" style={{ display: 'flex', gap: '0.75rem', minHeight: 0 }}>
         
@@ -254,7 +266,7 @@ export default function HomePage() {
               />
               <div style={{ padding: '0.5rem 0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E6EAF2' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button style={{ padding: '0.25rem', background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex' }}>
+                  <button onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{ padding: '0.25rem', background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex' }}>
                     <svg width="0.875rem" height="0.875rem" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                   </button>
                   {supportsSpeech && (

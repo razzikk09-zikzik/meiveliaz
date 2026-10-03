@@ -4,6 +4,7 @@
 from typing import List
 
 from ..utils import text_utils, url_utils
+from . import blocklist_service
 
 SIGNAL_URGENCY = "URGENCY"
 SIGNAL_OTP = "OTP_REQUEST"
@@ -143,10 +144,14 @@ def analyze(text: str) -> dict:
     if brand_flag and lure_flag:
         signals.append(_signal("PHISHING_PATTERN", 12, "impersonated brand combined with a verification link"))
 
+    # --- Hardcoded blocklist intelligence (known scam domains/terms/paths) ---
+    signals.extend(blocklist_service.check(raw, urls))
+
     # --- Score: cap so one weak signal can never reach SCAM alone ---
     total = sum(s["score"] for s in signals)
-    if len(signals) == 1:
-        total = min(total, 45)  # a single signal can be at most SUSPICIOUS
+    has_blocklist_hit = any(s["name"] == "BLOCKLISTED_LINK" for s in signals)
+    if len(signals) == 1 and not has_blocklist_hit:
+        total = min(total, 45)  # a single weak signal can be at most SUSPICIOUS
     score = max(2, min(98, total))
     return {"available": True, "score": score, "signals": signals, "urls": urls}
 

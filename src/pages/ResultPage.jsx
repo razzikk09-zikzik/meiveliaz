@@ -49,6 +49,7 @@ function normalizeBackend(data, local) {
         };
       }),
       urls: data.urls || local.urls,
+      ocrText: (data.extracted && data.extracted.ocr_text) || '',
       similarReports: local.similarReports,
       explanation: data.explanation || '',
       recommendations: Array.isArray(data.recommendations) && data.recommendations.length ? data.recommendations : null,
@@ -62,10 +63,35 @@ export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const text = location.state?.text || '';
+  const image = location.state?.image || null;
   const [result, setResult] = useState(null);
+  const [imgError, setImgError] = useState(false);
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
+    // Screenshot flow: upload the image, backend reads it with Gemini vision (OCR fallback)
+    if (image) {
+      let cancelled = false;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const fd = new FormData();
+      fd.append('image', image);
+      fetch(`${apiUrl}/api/analyze/image`, { method: 'POST', body: fd })
+        .then(async (res) => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.detail || 'Image analysis failed');
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (cancelled) return;
+          setResult(normalizeBackend(data, analyzeLocally(data?.extracted?.ocr_text || '')));
+        })
+        .catch(() => { if (!cancelled) setImgError(true); });
+      return () => { cancelled = true; };
+    }
+
+    // Text flow: try the backend risk engine, fall back to local heuristics
     if (!text) return;
     let cancelled = false;
     const local = analyzeLocally(text);
@@ -89,10 +115,10 @@ export default function ResultPage() {
       .finally(() => clearTimeout(timer));
 
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [text]);
+  }, [text, image]);
 
-  // Direct visit without text
-  if (!text) {
+  // Direct visit without text or image
+  if (!text && !image) {
     return (
       <div style={{ padding: '1rem', maxWidth: '32rem', margin: '0 auto' }}>
         <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '2rem 1rem', textAlign: 'center' }}>
@@ -105,6 +131,36 @@ export default function ResultPage() {
             Go to Home
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // Image flow: show loading / error card until the backend responds
+  if (image && !result) {
+    return (
+      <div style={{ padding: '1rem', maxWidth: '32rem', margin: '0 auto' }}>
+        <button onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', background: 'none', border: 'none', padding: '0 0 1rem', cursor: 'pointer' }}>
+          <svg width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          <span style={{ fontFamily: 'var(--font-head)', fontWeight: '600', fontSize: '0.875rem', color: '#1e293b' }}>Check another message</span>
+        </button>
+        {imgError ? (
+          <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '1.5rem', textAlign: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '1.125rem', fontWeight: '800' }}>Could not analyze the screenshot</h1>
+            <p style={{ color: '#475569', fontSize: '0.875rem', margin: '0.5rem 0 1.25rem' }}>Take a screenshot of the message and try again, or paste its text on the home screen.</p>
+            <button
+              onClick={() => navigate('/')}
+              style={{ padding: '0.75rem 1.5rem', borderRadius: '2rem', border: 'none', background: 'linear-gradient(90deg, #1D6FF2 0%, #7C5CF5 100%)', color: '#fff', fontFamily: 'var(--font-head)', fontWeight: '700', cursor: 'pointer' }}
+            >
+              Back to Home
+            </button>
+          </div>
+        ) : (
+          <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '2rem 1rem', textAlign: 'center' }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', margin: '0 auto 0.75rem', borderRadius: '50%', border: '3px solid #E6EAF2', borderTopColor: '#2563EB', animation: 'spin 1s linear infinite' }} />
+            <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '1.125rem', fontWeight: '800' }}>Analyzing your screenshot…</h1>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>Our AI is reading every word in the image.</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -158,7 +214,12 @@ export default function ResultPage() {
       {/* Analysed message */}
       <div style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.875rem', padding: '1rem' }}>
         <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: '800', fontSize: '0.9375rem', color: '#0f172a', marginBottom: '0.5rem' }}>Analysed message</h2>
-        <p style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.55, wordBreak: 'break-word' }}>{text}</p>
+        {image && (
+          <img src={URL.createObjectURL(image)} alt="Analysed screenshot" style={{ maxWidth: '100%', maxHeight: '14rem', borderRadius: '0.5rem', border: '1px solid #E6EAF2', marginBottom: r.ocrText ? '0.625rem' : 0 }} />
+        )}
+        {(r.ocrText || text) && (
+          <p style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.55, wordBreak: 'break-word' }}>{r.ocrText || text}</p>
+        )}
       </div>
 
       {/* What we found */}

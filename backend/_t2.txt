@@ -1,0 +1,2 @@
+status 503
+{"detail":"Could not read the image with AI vision or OCR — paste the message text instead"}

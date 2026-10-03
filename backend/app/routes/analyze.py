@@ -16,17 +16,18 @@ logger = get_logger("meyvizhi.analyze")
 router = APIRouter(prefix="/api", tags=["analyze"])
 
 
-async def _run_pipeline(text: str, url_hint: str = "", language: str = "english") -> dict:
-    urls = url_utils.extract_urls(text)
-    if url_hint and url_hint not in urls:
-        urls.append(url_hint)
-
+async def _build_verdict(text: str, gemini: dict) -> dict:
+    """Run heuristics (+ blocklists), VirusTotal and the graph on `text`,
+    then fuse everything in the risk engine."""
     heuristics = heuristic_engine.analyze(text)
+    urls = heuristics.get("urls") or []
 
-    gemini_task = gemini_service.analyze(text, language)
-    vt_task = virustotal_service.analyze_url(urls[0]) if urls else _none_provider()
-    graph_task = neo4j_service.find_related(message=text, url=url_hint)
-    gemini, virustotal, graph = await gemini_task, await vt_task, await graph_task
+    async def _none():
+        return {"available": False, "reason": "no URL in message"}
+
+    vt_task = virustotal_service.analyze_url(urls[0]) if urls else _none()
+    graph_task = neo4j_service.find_related(message=text)
+    virustotal, graph = await vt_task, await graph_task
 
     verdict = risk_engine.combine(gemini, heuristics, virustotal, graph)
     verdict["urls"] = urls
@@ -39,13 +40,10 @@ async def _run_pipeline(text: str, url_hint: str = "", language: str = "english"
     return verdict
 
 
-async def _none_provider() -> dict:
-    return {"available": False, "reason": "no URL in message"}
-
-
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest) -> dict:
-    verdict = await _run_pipeline(request.text, request.url, request.language)
+    gemini = await gemini_service.analyze(request.text, request.language)
+    verdict = await _build_verdict(request.text, gemini)
     log_event(
         logger, "analysis_completed",
         classification=verdict["classification"],
@@ -57,6 +55,8 @@ async def analyze(request: AnalyzeRequest) -> dict:
 
 @router.post("/analyze/image", response_model=AnalyzeResponse)
 async def analyze_image(image: UploadFile = File(...)) -> dict:
+    """Screenshot analysis: Gemini vision first, Tesseract OCR as fallback
+    (spec section 18)."""
     from ..services import ocr_service
 
     if not (image.content_type or "").startswith("image/"):
@@ -65,14 +65,21 @@ async def analyze_image(image: UploadFile = File(...)) -> dict:
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty upload")
 
+    mime = image.content_type or "image/png"
+    gemini_img = await gemini_service.analyze_image(image_bytes, mime)
     ocr = ocr_service.extract_text(image_bytes)
-    if not ocr.get("available") or not ocr.get("text"):
+
+    text = (gemini_img.get("transcribed_text") or "").strip() or (ocr.get("text") or "").strip()
+    if not text:
         raise HTTPException(
             status_code=503,
-            detail=ocr.get("reason", "OCR is unavailable — paste the message text instead"),
+            detail="Could not read the image with AI vision or OCR — paste the message text instead",
         )
 
-    verdict = await _run_pipeline(ocr["text"])
-    verdict["extracted"]["ocr_text"] = ocr["text"][:1000]
-    log_event(logger, "image_analysis_completed", classification=verdict["classification"])
+    gemini_provider = gemini_img if gemini_img.get("available") else {"available": False}
+    verdict = await _build_verdict(text, gemini_provider)
+    verdict["extracted"]["ocr_text"] = text[:1000]
+    log_event(logger, "image_analysis_completed",
+              classification=verdict["classification"],
+              providers=",".join(k for k, v in verdict["sources"].items() if v))
     return verdict
