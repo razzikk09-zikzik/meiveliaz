@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # App
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     rate_limit_per_minute: int = 30
-    max_body_bytes: int = 2 * 1024 * 1024  # 2 MB
+    max_body_bytes: int = 8 * 1024 * 1024  # 8 MB (screenshots can be large)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

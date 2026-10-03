@@ -59,6 +59,26 @@ function normalizeBackend(data, local) {
   return local;
 }
 
+// Downscale a screenshot in the browser before upload — phone screenshots are
+// often 3-5MB and server payloads should stay small. Falls back to the
+// original file when the browser can't decode it (e.g. some HEIC files).
+async function fileToUploadBlob(file) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 1280;
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1 && file.size < 1.5 * 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    return blob && blob.size > 0 ? blob : file;
+  } catch {
+    return file;
+  }
+}
+
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,21 +93,22 @@ export default function ResultPage() {
     if (image) {
       let cancelled = false;
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const fd = new FormData();
-      fd.append('image', image);
-      fetch(`${apiUrl}/api/analyze/image`, { method: 'POST', body: fd })
-        .then(async (res) => {
+      (async () => {
+        try {
+          const blob = await fileToUploadBlob(image);
+          const fd = new FormData();
+          fd.append('image', blob, 'screenshot.jpg');
+          const res = await fetch(`${apiUrl}/api/analyze/image`, { method: 'POST', body: fd });
           if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             throw new Error(body.detail || 'Image analysis failed');
           }
-          return res.json();
-        })
-        .then((data) => {
-          if (cancelled) return;
-          setResult(normalizeBackend(data, analyzeLocally(data?.extracted?.ocr_text || '')));
-        })
-        .catch(() => { if (!cancelled) setImgError(true); });
+          const data = await res.json();
+          if (!cancelled) setResult(normalizeBackend(data, analyzeLocally(data?.extracted?.ocr_text || '')));
+        } catch {
+          if (!cancelled) setImgError(true);
+        }
+      })();
       return () => { cancelled = true; };
     }
 

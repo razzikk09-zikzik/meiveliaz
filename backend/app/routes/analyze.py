@@ -70,6 +70,10 @@ async def analyze_image(image: UploadFile = File(...)) -> dict:
     ocr = ocr_service.extract_text(image_bytes)
 
     text = (gemini_img.get("transcribed_text") or "").strip() or (ocr.get("text") or "").strip()
+    if not text and gemini_img.get("available"):
+        # Vision returned a verdict even though no readable text was found
+        # (e.g. a QR code or payment screen) — trust it.
+        text = "(image contained no readable text)"
     if not text:
         raise HTTPException(
             status_code=503,
