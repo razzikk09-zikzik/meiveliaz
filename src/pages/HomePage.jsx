@@ -104,7 +104,7 @@ export default function HomePage() {
       </button>
 
       {/* 5. Quick Actions Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
         <button onClick={() => navigate('/report')} style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.75rem', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
           <div style={{ width: '2rem', height: '2rem', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -122,6 +122,12 @@ export default function HomePage() {
             <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
           </div>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', textAlign: 'center', lineHeight: 1.2 }}>Check<br/>UPI ID</span>
+        </button>
+        <button onClick={() => navigate('/guide')} style={{ background: '#fff', border: '1px solid #E6EAF2', borderRadius: '0.75rem', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+          <div style={{ width: '2rem', height: '2rem', background: '#FFFBEB', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', textAlign: 'center', lineHeight: 1.2 }}>Learn &<br/>Stay Safe</span>
         </button>
       </div>
 
@@ -371,9 +377,7 @@ export default function HomePage() {
         </div>
 
         <div className="report-tiles-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.75rem' }}>
-          {reportTiles.map(tile => {
-            const isWhatsapp = tile.id === 'whatsapp';
-            return (
+          {reportTiles.map(tile => (
               <button
                 key={tile.id}
                 style={{
@@ -393,13 +397,11 @@ export default function HomePage() {
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(37,99,235,0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E6EAF2'; e.currentTarget.style.boxShadow = 'none'; }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <img src={tile.iconUrl} alt={tile.label} style={{ width: '1.5rem', height: '1.5rem', objectFit: 'contain', filter: isWhatsapp ? 'none' : 'invert(27%) sepia(85%) saturate(2331%) hue-rotate(212deg) brightness(97%) contrast(92%)' }} />
-                </div>
+                <img src={tile.iconUrl} alt={tile.label} style={{ width: '1.875rem', height: '1.875rem', objectFit: 'contain' }} />
                 <span style={{ fontFamily: "var(--font-head)", fontWeight: '700', fontSize: '0.9rem', color: '#0f172a' }}>{tile.label}</span>
               </button>
             )
-          })}
+          )}
         </div>
       </div>
 
@@ -425,7 +427,6 @@ export default function HomePage() {
             const bgTint = isHigh ? '#FFF5F5' : '#FFFBEB';
             const badgeBg = isHigh ? '#FEE2E2' : '#FEF3C7';
             const badgeColor = isHigh ? '#B91C1C' : '#B45309';
-            const iconColor = isHigh ? 'invert(16%) sepia(91%) saturate(7351%) hue-rotate(358deg) brightness(94%) contrast(114%)' : 'invert(52%) sepia(61%) saturate(3065%) hue-rotate(1deg) brightness(102%) contrast(105%)';
 
             return (
               <div
@@ -444,7 +445,7 @@ export default function HomePage() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <img src={card.iconUrl} alt="" style={{ width: '1.5rem', height: '1.5rem', objectFit: 'contain', filter: iconColor }} />
+                  <img src={card.iconUrl} alt="" style={{ width: '2rem', height: '2rem', objectFit: 'contain' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

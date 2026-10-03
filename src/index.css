@@ -7,8 +7,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  font-size: clamp(12px, min(1vw, 1.6vh), 17px);
+  font-size: clamp(14px, min(1vw, 1.6vh), 17px);
   height: 100%;
+}
+
+/* Mobile gets a standard 16px base so nothing renders tiny */
+@media (max-width: 767px) {
+  html {
+    font-size: 16px;
+  }
 }
 
 body {

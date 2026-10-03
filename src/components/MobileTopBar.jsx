@@ -14,14 +14,11 @@ export default function MobileTopBar({ language, onLanguageToggle }) {
         flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <svg width="1.75rem" height="1.75rem" viewBox="0 0 32 32" fill="none">
-          <path d="M16 26C24.8366 26 32 16 32 16C32 16 24.8366 6 16 6C7.16344 6 0 16 0 16C0 16 7.16344 26 16 26Z" fill="#1D4ED8" />
-          <circle cx="16" cy="16" r="6" fill="#EFF6FF" />
-          <circle cx="16" cy="16" r="3" fill="#1E3A8A" />
-        </svg>
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-          <span style={{ fontFamily: "var(--font-head)", fontWeight: '800', fontSize: '1rem', color: '#1e293b' }}>MEYVIZHI</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+        <img src="/assets/eye-mark.png" alt="MEYVIZHI logo" style={{ width: '1.875rem', height: '1.875rem', objectFit: 'contain' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+          <span style={{ fontFamily: "var(--font-head)", fontWeight: '800', fontSize: '0.9375rem', color: '#1e293b', letterSpacing: '0.02em' }}>MEYVIZHI <span style={{ fontWeight: '500', color: '#2563EB' }}>மெய்விழி</span></span>
+          <span style={{ fontFamily: "var(--font-head)", fontWeight: '500', fontSize: '0.5625rem', color: '#64748b' }}>See the scam. Trace the threat.</span>
         </div>
       </div>
       
